@@ -517,16 +517,16 @@ class VSSBlock(nn.Module):
         self.drop_path = DropPath(drop_path)
 
     def forward(self, input: torch.Tensor):
-        # 將 (B, C, H, W) 轉換成 (B, H, W, C)
+        # 1. 將 (B, C, H, W) 轉換成 (B, H, W, C)
         x = input.permute(0, 2, 3, 1)
-        # 使用 LayerNorm 正規化（確保最後一維大小正確，即 d_model）
+        # 2. 對最後一個維度進行 LayerNorm
         x_norm = self.ln_1(x)
-        # 傳入 self.self_attention，SS2D 期望輸入形狀為 (B, H, W, C)
-        sa_out = self.self_attention(x_norm)
-        # 跳躍連線：將正規化後的輸出與原始（已轉置）的 x 相加
-        out = x + self.drop_path(sa_out)
-        # 轉換回 (B, C, H, W) 再輸出
-        out = out.permute(0, 3, 1, 2)
+        # 3. 傳入 self.self_attention，SS2D 期望輸入為 (B, H, W, C)
+        sa_out = self.self_attention(x_norm)  # SS2D 返回 (B, C, H, W)
+        # 4. 將 SS2D 的輸出轉回 (B, H, W, C) 以便與 x 相加
+        sa_out = sa_out.permute(0, 2, 3, 1)
+        # 5. 跳躍連線相加，並轉回 (B, C, H, W) 格式
+        out = (x + self.drop_path(sa_out)).permute(0, 3, 1, 2)
         return out
 
 
