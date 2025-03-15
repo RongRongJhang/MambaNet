@@ -491,6 +491,12 @@ class VSSBlock(nn.Module):
         self.drop_path = DropPath(drop_path)
 
     def forward(self, input: torch.Tensor):
+
+        # (B, C, H, W) → (B, H, W, C) 適應 LayerNorm
+        x = input.permute(0, 2, 3, 1) 
+        x = self.ln_1(x)
+        x = x.permute(0, 3, 1, 2)  # 轉回 (B, C, H, W)
+        
         x = input + self.drop_path(self.self_attention(self.ln_1(input)))
         return x
 
