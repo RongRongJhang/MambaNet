@@ -475,6 +475,32 @@ class SS2D(nn.Module):
         return out.permute(0, 3, 1, 2)
 
 
+# class VSSBlock(nn.Module):
+#     def __init__(
+#         self,
+#         hidden_dim: int = 0,
+#         drop_path: float = 0,
+#         norm_layer: Callable[..., torch.nn.Module] = partial(nn.LayerNorm, eps=1e-6),
+#         attn_drop_rate: float = 0,
+#         d_state: int = 16,
+#         **kwargs,
+#     ):
+#         super().__init__()
+#         self.ln_1 = norm_layer(hidden_dim)
+#         self.self_attention = SS2D(d_model=hidden_dim, dropout=attn_drop_rate, d_state=d_state, **kwargs)
+#         self.drop_path = DropPath(drop_path)
+
+#     def forward(self, input: torch.Tensor):
+
+#         # (B, C, H, W) → (B, H, W, C) 適應 LayerNorm
+#         x = input.permute(0, 2, 3, 1) 
+#         x = self.ln_1(x)
+#         x = x.permute(0, 3, 1, 2)  # 轉回 (B, C, H, W)
+        
+#         # x = input + self.drop_path(self.self_attention(self.ln_1(input)))
+#         x = input + self.drop_path(self.self_attention(x))
+#         return x
+
 class VSSBlock(nn.Module):
     def __init__(
         self,
@@ -491,15 +517,17 @@ class VSSBlock(nn.Module):
         self.drop_path = DropPath(drop_path)
 
     def forward(self, input: torch.Tensor):
-
-        # (B, C, H, W) → (B, H, W, C) 適應 LayerNorm
-        x = input.permute(0, 2, 3, 1) 
-        x = self.ln_1(x)
-        x = x.permute(0, 3, 1, 2)  # 轉回 (B, C, H, W)
-        
-        # x = input + self.drop_path(self.self_attention(self.ln_1(input)))
-        x = input + self.drop_path(self.self_attention(x))
-        return x
+        # 將 (B, C, H, W) 轉換成 (B, H, W, C)
+        x = input.permute(0, 2, 3, 1)
+        # 使用 LayerNorm 正規化（確保最後一維大小正確，即 d_model）
+        x_norm = self.ln_1(x)
+        # 傳入 self.self_attention，SS2D 期望輸入形狀為 (B, H, W, C)
+        sa_out = self.self_attention(x_norm)
+        # 跳躍連線：將正規化後的輸出與原始（已轉置）的 x 相加
+        out = x + self.drop_path(sa_out)
+        # 轉換回 (B, C, H, W) 再輸出
+        out = out.permute(0, 3, 1, 2)
+        return out
 
 
 class VSSLayer(nn.Module):
