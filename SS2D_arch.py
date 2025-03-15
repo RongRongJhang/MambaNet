@@ -497,7 +497,8 @@ class VSSBlock(nn.Module):
         x = self.ln_1(x)
         x = x.permute(0, 3, 1, 2)  # 轉回 (B, C, H, W)
         
-        x = input + self.drop_path(self.self_attention(self.ln_1(input)))
+        # x = input + self.drop_path(self.self_attention(self.ln_1(input)))
+        x = input + self.drop_path(self.self_attention(x))
         return x
 
 
